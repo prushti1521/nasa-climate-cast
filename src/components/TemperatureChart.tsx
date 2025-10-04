@@ -11,6 +11,7 @@ import {
   ChartOptions,
 } from 'chart.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getVariableById } from '@/lib/weatherVariables';
 
 ChartJS.register(
   CategoryScale,
@@ -23,17 +24,23 @@ ChartJS.register(
 );
 
 interface TemperatureChartProps {
-  data: Array<{ year: number; maxTemp: number }>;
+  data: Array<{ year: number; maxValue: number }>;
   threshold: number;
+  variable?: string;
 }
 
-export function TemperatureChart({ data, threshold }: TemperatureChartProps) {
+export function TemperatureChart({ data, threshold, variable }: TemperatureChartProps) {
+  const variableInfo = variable ? getVariableById(variable) : null;
+  const chartTitle = variableInfo 
+    ? `Historical ${variableInfo.name} Data` 
+    : 'Historical Data';
+  const yAxisLabel = variableInfo?.unit || 'Value';
   const chartData = {
     labels: data.map(d => d.year.toString()),
     datasets: [
       {
-        label: 'Maximum Temperature (°C)',
-        data: data.map(d => d.maxTemp),
+        label: `${variableInfo?.name || 'Value'} (${yAxisLabel})`,
+        data: data.map(d => d.maxValue),
         borderColor: 'hsl(var(--chart-1))',
         backgroundColor: 'hsla(var(--chart-1), 0.1)',
         tension: 0.3,
@@ -89,7 +96,7 @@ export function TemperatureChart({ data, threshold }: TemperatureChartProps) {
         },
         ticks: {
           color: 'hsl(var(--muted-foreground))',
-          callback: (value) => `${value}°C`,
+          callback: (value) => `${value}${yAxisLabel}`,
         },
       },
     },
@@ -98,7 +105,7 @@ export function TemperatureChart({ data, threshold }: TemperatureChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Yearly Maximum Temperatures</CardTitle>
+        <CardTitle>{chartTitle}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[400px]">

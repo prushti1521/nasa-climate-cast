@@ -19,16 +19,18 @@ const Index = () => {
     setAnalysisParams(params);
     
     try {
-      const response = await fetch('/api/probability', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nasa-weather`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify(params),
       });
 
       if (!response.ok) {
-        throw new Error('Analysis failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Analysis failed');
       }
 
       const data: AnalysisResults = await response.json();
@@ -39,27 +41,11 @@ const Index = () => {
         description: `Probability: ${data.probability.toFixed(1)}%`,
       });
     } catch (error) {
+      console.error('Analysis error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch analysis. Using sample data for demo.',
+        description: error instanceof Error ? error.message : 'Failed to fetch analysis',
         variant: 'destructive',
-      });
-      
-      // Demo data for testing UI
-      setResults({
-        probability: 68.5,
-        confidenceInterval: [62.3, 74.7],
-        yearsAnalyzed: 42,
-        percentiles: {
-          p25: 22.5,
-          p50: 25.2,
-          p75: 27.8,
-          p90: 29.3,
-        },
-        yearlyData: Array.from({ length: 42 }, (_, i) => ({
-          year: 1981 + i,
-          maxTemp: 20 + Math.random() * 12,
-        })),
       });
     } finally {
       setIsLoading(false);
@@ -69,9 +55,23 @@ const Index = () => {
   const handleDownloadCSV = () => {
     if (!results) return;
 
+    const variable = results.metadata?.variable || 'Value';
+    const unit = results.metadata?.variable 
+      ? require('@/lib/weatherVariables').getVariableById(results.metadata.variable)?.unit 
+      : '';
+
     const csvContent = [
-      ['Year', 'Maximum Temperature (°C)'],
-      ...results.yearlyData.map(d => [d.year, d.maxTemp.toFixed(2)]),
+      ['Year', `Maximum ${variable} ${unit ? `(${unit})` : ''}`],
+      ...results.yearlyData.map(d => [d.year, d.maxValue.toFixed(2)]),
+      [],
+      ['Metadata'],
+      ['Data Source', results.metadata?.dataSource || 'NASA POWER API'],
+      ['API URL', results.metadata?.apiUrl || 'https://power.larc.nasa.gov/'],
+      ['Latitude', results.metadata?.location.latitude.toFixed(4) || ''],
+      ['Longitude', results.metadata?.location.longitude.toFixed(4) || ''],
+      ['Date Window', `Month ${results.metadata?.dateWindow.month}, Day ${results.metadata?.dateWindow.day}, ±${results.metadata?.dateWindow.windowDays} days`],
+      ['Threshold', results.metadata?.threshold || ''],
+      ['Variable', variable],
     ]
       .map(row => row.join(','))
       .join('\n');
@@ -86,7 +86,25 @@ const Index = () => {
 
     toast({
       title: 'Download Started',
-      description: 'CSV file is being downloaded',
+      description: 'CSV file with metadata is being downloaded',
+    });
+  };
+
+  const handleDownloadJSON = () => {
+    if (!results) return;
+
+    const jsonContent = JSON.stringify(results, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `weather-analysis-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Download Started',
+      description: 'JSON file is being downloaded',
     });
   };
 
@@ -133,12 +151,17 @@ const Index = () => {
 
           {/* Right Column - Results */}
           <div className="space-y-6">
-            <ResultsPanel results={results} onDownloadCSV={handleDownloadCSV} />
+            <ResultsPanel 
+              results={results} 
+              onDownloadCSV={handleDownloadCSV}
+              onDownloadJSON={handleDownloadJSON}
+            />
             
             {results && analysisParams && (
               <TemperatureChart 
                 data={results.yearlyData} 
                 threshold={analysisParams.threshold}
+                variable={analysisParams.variable}
               />
             )}
           </div>

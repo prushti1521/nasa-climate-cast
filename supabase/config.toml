@@ -1,0 +1,4 @@
+project_id = "vjuvnzwglzwlntkeiqwi"
+
+[functions.nasa-weather]
+verify_jwt = false

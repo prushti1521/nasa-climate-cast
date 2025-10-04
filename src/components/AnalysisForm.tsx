@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { WEATHER_VARIABLES } from '@/lib/weatherVariables';
 
 interface AnalysisFormProps {
   latitude: number;
@@ -20,6 +22,7 @@ export interface AnalysisParams {
   day: number;
   window: number;
   threshold: number;
+  variable: string;
 }
 
 export function AnalysisForm({ 
@@ -34,11 +37,14 @@ export function AnalysisForm({
   const [day, setDay] = useState(15);
   const [window, setWindow] = useState(3);
   const [threshold, setThreshold] = useState(25);
+  const [variable, setVariable] = useState('T2M_MAX');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAnalyze({ latitude, longitude, month, day, window, threshold });
+    onAnalyze({ latitude, longitude, month, day, window, threshold, variable });
   };
+
+  const selectedVariable = WEATHER_VARIABLES.find(v => v.id === variable);
 
   return (
     <Card>
@@ -47,6 +53,25 @@ export function AnalysisForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="variable">Weather Variable</Label>
+            <Select value={variable} onValueChange={setVariable}>
+              <SelectTrigger id="variable" className="bg-background">
+                <SelectValue placeholder="Select weather variable" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {WEATHER_VARIABLES.map((v) => (
+                  <SelectItem key={v.id} value={v.id} className="cursor-pointer">
+                    {v.name} ({v.unit})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedVariable && (
+              <p className="text-xs text-muted-foreground">{selectedVariable.description}</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="latitude">Latitude</Label>
@@ -123,7 +148,9 @@ export function AnalysisForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="threshold">Temperature Threshold (°C)</Label>
+            <Label htmlFor="threshold">
+              Threshold ({selectedVariable?.unit || ''})
+            </Label>
             <Input
               id="threshold"
               type="number"
@@ -132,6 +159,9 @@ export function AnalysisForm({
               onChange={(e) => setThreshold(parseFloat(e.target.value))}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Analyze probability of exceeding this value
+            </p>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
