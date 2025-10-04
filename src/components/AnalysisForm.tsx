@@ -55,7 +55,10 @@ export function AnalysisForm({
                 type="number"
                 step="0.0001"
                 value={latitude}
-                onChange={(e) => onLatitudeChange(parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value)) onLatitudeChange(value);
+                }}
                 required
                 min={-90}
                 max={90}
@@ -68,7 +71,10 @@ export function AnalysisForm({
                 type="number"
                 step="0.0001"
                 value={longitude}
-                onChange={(e) => onLongitudeChange(parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value)) onLongitudeChange(value);
+                }}
                 required
                 min={-180}
                 max={180}
